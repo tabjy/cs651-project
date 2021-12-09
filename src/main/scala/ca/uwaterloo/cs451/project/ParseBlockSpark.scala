@@ -39,6 +39,7 @@ object ParseBlockSpark {
 
     val inputSchema = StructType(
       StructField("transaction", StringType, nullable = false) ::
+        StructField("index", IntegerType, nullable = false) ::
         StructField("parent_transaction", StringType, nullable = false) ::
         StructField("vout", IntegerType, nullable = false) ::
         StructField("_partition", StringType, nullable = false) :: Nil
@@ -46,8 +47,9 @@ object ParseBlockSpark {
 
     val outputSchema = StructType(
       StructField("transaction", StringType, nullable = false) ::
-        StructField("value", IntegerType, nullable = false) ::
-        StructField("address", StringType, nullable = false) ::
+        StructField("index", IntegerType, nullable = false) ::
+        StructField("value", LongType, nullable = false) ::
+        StructField("address", StringType, nullable = true) ::
         StructField("_partition", StringType, nullable = false) :: Nil
     )
 
@@ -89,7 +91,7 @@ object ParseBlockSpark {
         tuple._1.getTransactions.iterator().asScala.flatMap(transaction => {
           val txId = transaction.getTxId.toString
           transaction.getInputs.iterator().asScala.map(input => {
-            Row(txId, input.getParentTransaction.getTxId.toString, input.getIndex, partition)
+            Row(txId, input.getIndex, input.getParentTransaction.getTxId.toString, input.getOutpoint.getIndex.toInt, partition)
           })
         })
       })
@@ -113,12 +115,12 @@ object ParseBlockSpark {
               null
             }
 
-            Row(txId, output.getValue.toSat, address, partition)
+            Row(txId, output.getIndex, output.getValue.toSat, address, partition)
           })
         })
       })
 
-    val outputDf = session.sqlContext.createDataFrame(inputRdd, inputSchema)
+    val outputDf = session.sqlContext.createDataFrame(outputRdd, outputSchema)
     outputDf.show(truncate = true)
     outputDf.write.mode(SaveMode.Overwrite).partitionBy("_partition").format("parquet").save(output + "/outputs")
   }
