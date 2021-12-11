@@ -53,7 +53,7 @@ object ParseBlockSpark {
         StructField("_partition", StringType, nullable = false) :: Nil
     )
 
-    val blocks = session.sparkContext.binaryFiles(input + "/blk0000*.dat")
+    val blocks = session.sparkContext.binaryFiles(input + "/blk015**.dat")
       .flatMap(tuple => {
         val stream = tuple._2.open()
         val np = new MainNetParams
@@ -107,12 +107,15 @@ object ParseBlockSpark {
         tuple._1.getTransactions.iterator().asScala.flatMap(transaction => {
           val txId = transaction.getTxId.toString
           transaction.getOutputs.iterator().asScala.map(output => {
-            val address = if (output.getAddressFromP2SH(np) != null) {
-              output.getAddressFromP2SH(np).toString
-            } else if (output.getAddressFromP2PKHScript(np) != null) {
-              output.getAddressFromP2PKHScript(np).toString
-            } else {
-              null
+            var address : String = null
+            try {
+              address = if (output.getAddressFromP2SH(np) != null) {
+                output.getAddressFromP2SH(np).toString
+              } else if (output.getAddressFromP2PKHScript(np) != null) {
+                output.getAddressFromP2PKHScript(np).toString
+              } else {
+                null
+              }
             }
 
             Row(txId, output.getIndex, output.getValue.toSat, address, partition)
