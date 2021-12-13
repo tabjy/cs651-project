@@ -6,6 +6,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Row, SaveMode, SparkSession}
 import org.bitcoinj.core.Context
 import org.bitcoinj.params.MainNetParams
+import org.bitcoinj.script.ScriptException
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
@@ -116,6 +117,8 @@ object ParseBlockSpark {
               } else {
                 null
               }
+            } catch {
+              case e: ScriptException => if (!transaction.isCoinBase) log.warn("Incorrectly structured script", e)
             }
 
             Row(txId, output.getIndex, output.getValue.toSat, address, partition)
